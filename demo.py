@@ -62,9 +62,11 @@ try:
             model_config_data = yaml.safe_load(f) or {}
 
     def get_config_val(section, key, env_var, default=""):
-        val = os.getenv(env_var)
-        if not val and section in model_config_data:
-            val = model_config_data[section].get(key)
+        val = ""
+        if section in model_config_data:
+            val = model_config_data[section].get(key, "")
+        if not val:
+            val = os.getenv(env_var)
         return val or default
 
 except ImportError as e:
@@ -81,7 +83,7 @@ except Exception as e:
 st.set_page_config(
     layout="wide",
     page_title="PaperVizAgent Parallel Demo",
-    page_icon="🍌"
+    page_icon="??"
 )
 
 def clean_text(text):
@@ -105,7 +107,7 @@ def base64_to_image(b64_str):
     except Exception:
         return None
 
-def create_sample_inputs(method_content, caption, diagram_type="Pipeline", aspect_ratio="16:9", num_copies=10, max_critic_rounds=3):
+def create_sample_inputs(method_content, caption, diagram_type="Pipeline", aspect_ratio="16:9", num_copies=1, max_critic_rounds=1):
     """Create multiple copies of the input data for parallel processing."""
     base_input = {
         "filename": "demo_input",
@@ -154,7 +156,7 @@ async def process_parallel_candidates(data_list, exp_mode="dev_planner_critic", 
     
     # Process all candidates in parallel (concurrency controlled by processor)
     results = []
-    concurrent_num = 10  # Process all 10 in parallel
+    concurrent_num = 1
     
     async for result_data in processor.process_queries_batch(
         data_list, max_concurrent=concurrent_num, do_eval=False
@@ -222,14 +224,14 @@ async def refine_image_with_nanoviz(image_bytes, edit_prompt, aspect_ratio="21:9
                     edited_image_data = part.inline_data.data
                     
                     if isinstance(edited_image_data, bytes):
-                        return edited_image_data, "✅ Image refined successfully!"
+                        return edited_image_data, "Image refined successfully!"
                     elif isinstance(edited_image_data, str):
-                        return base64.b64decode(edited_image_data), "✅ Image refined successfully!"
+                        return base64.b64decode(edited_image_data), "Image refined successfully!"
         
-        return None, "❌ No image data found in response"
+        return None, "No image data found in response"
     
     except Exception as e:
-        return None, f"❌ Error: {str(e)}"
+        return None, f"Error: {str(e)}"
 
 
 def get_evolution_stages(result, exp_mode):
@@ -242,7 +244,7 @@ def get_evolution_stages(result, exp_mode):
     planner_desc_key = f"target_{task_name}_desc0"
     if planner_img_key in result and result[planner_img_key]:
         stages.append({
-            "name": "📋 Planner",
+            "name": "Planner",
             "image_key": planner_img_key,
             "desc_key": planner_desc_key,
             "description": "Initial diagram plan based on method content"
@@ -254,7 +256,7 @@ def get_evolution_stages(result, exp_mode):
         stylist_desc_key = f"target_{task_name}_stylist_desc0"
         if stylist_img_key in result and result[stylist_img_key]:
             stages.append({
-                "name": "✨ Stylist",
+                "name": "Stylist",
                 "image_key": stylist_img_key,
                 "desc_key": stylist_desc_key,
                 "description": "Stylistically refined description"
@@ -268,7 +270,7 @@ def get_evolution_stages(result, exp_mode):
         
         if critic_img_key in result and result[critic_img_key]:
             stages.append({
-                "name": f"🔍 Critic Round {round_idx}",
+                "name": f"Critic Round {round_idx}",
                 "image_key": critic_img_key,
                 "desc_key": critic_desc_key,
                 "suggestions_key": critic_sugg_key,
@@ -315,7 +317,7 @@ def display_candidate_result(result, candidate_id, exp_mode):
             buffered = BytesIO()
             img.save(buffered, format="PNG")
             st.download_button(
-                label="⬇️ Download",
+                label="Download",
                 data=buffered.getvalue(),
                 file_name=f"candidate_{candidate_id}.png",
                 mime="image/png",
@@ -330,7 +332,7 @@ def display_candidate_result(result, candidate_id, exp_mode):
     # Show evolution timeline in an expander
     stages = get_evolution_stages(result, exp_mode)
     if len(stages) > 1:
-        with st.expander(f"🔄 View Evolution Timeline ({len(stages)} stages)", expanded=False):
+        with st.expander(f"View Evolution Timeline ({len(stages)} stages)", expanded=False):
             st.caption("See how the diagram evolved through different pipeline stages")
             
             for idx, stage in enumerate(stages):
@@ -344,17 +346,17 @@ def display_candidate_result(result, candidate_id, exp_mode):
                 
                 # Show description
                 if stage['desc_key'] in result:
-                    with st.expander(f"📝 Description", expanded=False):
+                    with st.expander("Description", expanded=False):
                         cleaned_desc = clean_text(result[stage['desc_key']])
                         st.write(cleaned_desc)
                 
                 # Show critic suggestions if available
                 if 'suggestions_key' in stage and stage['suggestions_key'] in result:
                     suggestions = result[stage['suggestions_key']]
-                    with st.expander(f"💡 Critic Suggestions", expanded=False):
+                    with st.expander("Critic Suggestions", expanded=False):
                         cleaned_sugg = clean_text(suggestions)
                         if cleaned_sugg.strip() == "No changes needed.":
-                            st.success("✅ No changes needed - iteration stopped.")
+                            st.success("No changes needed; iteration stopped.")
                         else:
                             st.write(cleaned_sugg)
                 
@@ -363,7 +365,7 @@ def display_candidate_result(result, candidate_id, exp_mode):
                     st.divider()
     else:
         # If only one stage, show description in simpler expander
-        with st.expander(f"📝 View Description", expanded=False):
+        with st.expander("View Description", expanded=False):
             if final_desc_key and final_desc_key in result:
                 # Clean the text to remove invalid UTF-8 characters
                 cleaned_desc = clean_text(result[final_desc_key])
@@ -372,11 +374,11 @@ def display_candidate_result(result, candidate_id, exp_mode):
                 st.info("No description available")
 
 def main():
-    st.title("🍌 PaperVizAgent Demo")
+    st.title("PaperVizAgent Demo")
     st.markdown("AI-powered scientific diagram generation and refinement")
     
     # Create tabs
-    tab1, tab2 = st.tabs(["📊 Generate Candidates", "✨ Refine Image"])
+    tab1, tab2 = st.tabs(["Generate Candidates", "Refine Image"])
     
     # ==================== TAB 1: Generate Candidates ====================
     with tab1:
@@ -384,7 +386,7 @@ def main():
         
         # Sidebar configuration for Tab 1
         with st.sidebar:
-            st.title("⚙️ Generation Settings")
+            st.title("Generation Settings")
             
             exp_mode = st.selectbox(
                 "Pipeline Mode",
@@ -395,15 +397,15 @@ def main():
             )
             
             mode_info = {
-                "demo_planner_critic": "Planner → Visualizer → Critic → Visualizer",
-                "demo_full": "Retriever → Planner → Stylist → Visualizer → Critic → Visualizer. (The stylist can make the diagram more aesthetically pleasing, but prone to be overly simplied. So we recommend trying both modes and select the best one)"
+                "demo_planner_critic": "Planner -> Visualizer -> Critic -> Visualizer",
+                "demo_full": "Retriever 鈫?Planner 鈫?Stylist 鈫?Visualizer 鈫?Critic 鈫?Visualizer. (The stylist can make the diagram more aesthetically pleasing, but prone to be overly simplied. So we recommend trying both modes and select the best one)"
             }
             st.info(f"**Pipeline:** {mode_info[exp_mode]}")
             
             retrieval_setting = st.selectbox(
                 "Retrieval Setting",
                 ["auto", "manual", "random", "none"],
-                index=0,
+                index=3,
                 key="tab1_retrieval_setting",
                 help="How to retrieve reference diagrams: auto (automatic selection), manual (use specified references), random (random selection), none (no retrieval)"
             )
@@ -412,7 +414,7 @@ def main():
                 "Number of Candidates",
                 min_value=1,
                 max_value=20,
-                value=10,
+                value=1,
                 key="tab1_num_candidates",
                 help="How many parallel candidates to generate"
             )
@@ -428,7 +430,7 @@ def main():
                 "Max Critic Rounds",
                 min_value=1,
                 max_value=5,
-                value=3,
+                value=1,
                 key="tab1_max_critic_rounds",
                 help="Maximum number of critic refinement iterations"
             )
@@ -447,12 +449,12 @@ def main():
         st.divider()
         
         # Input section
-        st.markdown("## 📝 Input")
+        st.markdown("## Input")
         
         # Example content
         example_method = r"""## Methodology: The PaperVizAgent Framework
         
-        In this section, we present the architecture of PaperVizAgent, a reference-driven agentic framework for automated academic illustration. As illustrated in Figure \ref{fig:methodology_diagram}, PaperVizAgent orchestrates a collaborative team of five specialized agents—Retriever, Planner, Stylist, Visualizer, and Critic—to transform raw scientific content into publication-quality diagrams and plots. (See Appendix \ref{app_sec:agent_prompts} for prompts)
+        In this section, we present the architecture of PaperVizAgent, a reference-driven agentic framework for automated academic illustration. As illustrated in Figure \ref{fig:methodology_diagram}, PaperVizAgent orchestrates a collaborative team of five specialized agents鈥擱etriever, Planner, Stylist, Visualizer, and Critic鈥攖o transform raw scientific content into publication-quality diagrams and plots. (See Appendix \ref{app_sec:agent_prompts} for prompts)
 
 ### Retriever Agent
 
@@ -473,7 +475,7 @@ $$
 ### Stylist Agent
 
 To ensure the output adheres to the aesthetic standards of modern academic manuscripts, the Stylist Agent acts as a design consultant.
-A primary challenge lies in defining a comprehensive “academic style,” as manual definitions are often incomplete.
+A primary challenge lies in defining a comprehensive 鈥渁cademic style,鈥?as manual definitions are often incomplete.
 To address this, the Stylist traverses the entire reference collection $\mathcal{R}$ to automatically synthesize an *Aesthetic Guideline* $\mathcal{G}$ covering key dimensions such as color palette, shapes and containers, lines and arrows, layout and composition, and typography and icons (see Appendix \ref{app_sec:auto_summarized_style_guide} for the summarized guideline and implementation details). Armed with this guideline, the Stylist refines each initial description $P$ into a stylistically optimized version $P^*$:
 $$
 P^* = \text{VLM}_{\text{style}}(P, \mathcal{G})
@@ -549,7 +551,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
             )
         
         # Process button
-        if st.button("🚀 Generate Candidates", type="primary", use_container_width=True):
+        if st.button("Generate Candidates", type="primary", use_container_width=True):
             if not method_content or not caption:
                 st.error("Please provide both method content and caption!")
             else:
@@ -597,10 +599,10 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
                                 f.write(json_string)
                             
                             st.session_state["json_file"] = str(json_filename)
-                            st.success(f"✅ Successfully generated {len(results)} candidates!")
-                            st.info(f"💾 Results saved to: `{json_filename.name}`")
+                            st.success(f"Successfully generated {len(results)} candidates!")
+                            st.info(f"Results saved to: `{json_filename.name}`")
                         except Exception as e:
-                            st.warning(f"⚠️ Generated {len(results)} candidates, but failed to save JSON: {e}")
+                            st.warning(f"Generated {len(results)} candidates, but failed to save JSON: {e}")
                     except Exception as e:
                         st.error(f"Error during processing: {e}")
                         import traceback
@@ -613,7 +615,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
             timestamp = st.session_state.get("timestamp", "N/A")
             
             st.divider()
-            st.markdown("## 🎨 Generated Candidates")
+            st.markdown("## Generated Candidates")
             st.caption(f"Generated at: {timestamp} | Pipeline: {mode_info.get(current_mode, current_mode)}")
             
             # Show JSON file download if available
@@ -622,12 +624,12 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
                 if json_file_path.exists():
                     col1, col2 = st.columns([3, 1])
                     with col1:
-                        st.info(f"📄 Results saved to: `{json_file_path.relative_to(Path.cwd())}`")
+                        st.info(f"Results saved to: `{json_file_path.relative_to(Path.cwd())}`")
                     with col2:
                         with open(json_file_path, "r", encoding="utf-8") as f:
                             json_data = f.read()
                         st.download_button(
-                            label="⬇️ Download JSON",
+                            label="Download JSON",
                             data=json_data,
                             file_name=json_file_path.name,
                             mime="application/json",
@@ -648,7 +650,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
             
             # Add ZIP download button
             st.divider()
-            st.markdown("### 💾 Batch Download")
+            st.markdown("### Batch Download")
             
             try:
                 import zipfile
@@ -688,7 +690,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
                 
                 zip_buffer.seek(0)
                 st.download_button(
-                    label="⬇️ Download ZIP",
+                    label="Download ZIP",
                     data=zip_buffer.getvalue(),
                     file_name=f"papervizagent_candidates_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
                     mime="application/zip",
@@ -705,7 +707,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
         
         # Sidebar for refinement settings
         with st.sidebar:
-            st.title("✨ Refinement Settings")
+            st.title("Refinement Settings")
             
             refine_resolution = st.selectbox(
                 "Target Resolution",
@@ -726,7 +728,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
         st.divider()
         
         # Upload section
-        st.markdown("## 📤 Upload Image")
+        st.markdown("## Upload Image")
         uploaded_file = st.file_uploader(
             "Choose an image file",
             type=["png", "jpg", "jpeg"],
@@ -752,7 +754,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
                     key="edit_prompt"
                 )
                 
-                if st.button("✨ Refine Image", type="primary", use_container_width=True):
+                if st.button("Refine Image", type="primary", use_container_width=True):
                     if not edit_prompt:
                         st.error("Please provide edit instructions!")
                     else:
@@ -788,7 +790,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
             # Display refined result if available
             if "refined_image" in st.session_state:
                 st.divider()
-                st.markdown("## 🎨 Refined Result")
+                st.markdown("## Refined Result")
                 st.caption(f"Generated at: {st.session_state.get('refine_timestamp', 'N/A')} | Resolution: {refine_resolution}")
                 
                 col1, col2 = st.columns(2)
@@ -804,7 +806,7 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
                     
                     # Download button
                     st.download_button(
-                        label=f"⬇️ Download {refine_resolution} Image",
+                        label=f"Download {refine_resolution} Image",
                         data=st.session_state["refined_image"],
                         file_name=f"refined_{refine_resolution}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
                         mime="image/png",

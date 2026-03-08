@@ -44,9 +44,11 @@ if config_path.exists():
         model_config = yaml.safe_load(f) or {}
 
 def get_config_val(section, key, env_var, default=""):
-    val = os.getenv(env_var)
-    if not val and section in model_config:
-        val = model_config[section].get(key)
+    val = ""
+    if section in model_config:
+        val = model_config[section].get(key, "")
+    if not val:
+        val = os.getenv(env_var)
     return val or default
 
 # Initialize clients lazily or with robust defaults
