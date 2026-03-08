@@ -1,3 +1,19 @@
+# PaperBanana_fixed
+Now, the usage instructions are as follows:
+1. Set up the necessary virtual UV environment. The detailed instructions can be found in the original project.
+2. In the config folder, fill in your API in model_config.yaml.
+3. Start the program by running start_paperbanana.bat.
+
+This project is based on https://github.com/dwzhu-pku/PaperBanana?tab=readme-ov-file and has been improved. The main changes are made based on the actual situation during individual usage.
+
+First, the configuration reading priority has been modified. In both utils/generation_utils.py and demo.py, it has been uniformly set to prioritize reading configs/model_config.yaml, and there is no longer a fallback to environment variables. 
+
+Secondly, I fixed the garbled text that was visible on the pages in demo.py. The titles, tabs, buttons, download area, result area, upload area, as well as the display texts in the candidate evolution process such as Planner, Stylist, Critic Round, etc., were all replaced with normal readable English. At the same time, I also changed the garbled log in utils/image_utils.py to normal English to avoid any encoding output issues in the Windows terminal. 
+
+Thirdly, the default operation mode of the demo was changed to the low quota mode, and this was done in the demo.py file. The default search was set to "none", the number of candidates was changed to 1, the number of critic rounds was changed to 1, and the backend concurrency was also changed to 1. This means that it is now defaulting to not being the "multiple candidate concurrent experiment mode", but rather a smaller traffic operation mode more suitable for personal API quotas.
+
+
+
 # <div align="center">PaperBanana 🍌</div>
 <div align="center">Dawei Zhu, Rui Meng, Yale Song, Xiyu Wei, Sujian Li, Tomas Pfister and Jinsung yoon
 <br><br></div>
